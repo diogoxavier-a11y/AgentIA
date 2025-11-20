@@ -12,16 +12,21 @@ load_dotenv()
 def process_vat(vat):
     logger.info(f"Processando VAT {vat}")
 
-    invoices = buscar_faturas_por_vat(vat)
+    # 1 — Buscar cliente
+    cliente = buscar_cliente_por_vat(vat)
 
-    # API falhou → usar fallback Playwright
-    if invoices is None:
-        logger.warning("API falhou, usando automação web")
-        from rpa_playwright import verificar_rascunho_via_web_sync
-        return verificar_rascunho_via_web_sync(vat)
+    if not cliente:
+        logger.warning(f"Sem cliente para VAT {vat}")
+        return []
 
+    client_id = cliente["id"]
 
+    # 2 — Buscar faturas desse cliente
+    invoices = buscar_faturas_por_cliente(client_id)
+
+    # 3 — Filtrar rascunhos
     drafts = filtrar_rascunhos(invoices)
+
     return drafts
 
 def main():
@@ -34,10 +39,26 @@ def main():
         drafts = process_vat(vat)
         resultados.append({"VAT": vat, "rascunhos": len(drafts)})
 
+    # Criar DataFrame
     out_df = pd.DataFrame(resultados)
-    out_df.to_excel("resultado_final.xlsx", index=False)
 
-    logger.info("Processo concluído. Arquivo salvo como resultado_final.xlsx")
+    # Ordenar do maior para o menor número de rascunhos
+    out_df = out_df.sort_values(by="rascunhos", ascending=False)
+
+    # Salvar em Excel com filtro automático
+    with pd.ExcelWriter("resultado_final.xlsx", engine="openpyxl") as writer:
+        out_df.to_excel(writer, index=False, sheet_name="Resultados")
+
+    sheet = writer.sheets["Resultados"]
+
+    # Adicionar filtro
+    sheet.auto_filter.ref = sheet.dimensions
+
+    # Ajustar automaticamente a largura das colunas
+    for column_cells in sheet.columns:
+        length = max(len(str(cell.value)) for cell in column_cells)
+        col_letter = column_cells[0].column_letter
+        sheet.column_dimensions[col_letter].width = length + 2
 
 
 if __name__ == "__main__":
