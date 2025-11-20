@@ -1,15 +1,44 @@
 import asyncio
-from playwright.async_api import async_playwright
-from loguru import logger
 import os
+
+from dotenv import load_dotenv
+from loguru import logger
+from playwright.async_api import async_playwright
+
+load_dotenv()
+
+
+def _get_ie_credentials():
+    """Recupera credenciais da InvoiceExpress com fallback para variáveis antigas.
+
+    Prioriza IE_EMAIL/IE_PASSWORD, mas aceita INVOICE_USER/INVOICE_PASS para
+    compatibilidade com arquivos .env existentes.
+    """
+
+    email = os.getenv("IE_EMAIL") or os.getenv("INVOICE_USER")
+    password = os.getenv("IE_PASSWORD") or os.getenv("INVOICE_PASS")
+
+    missing = []
+    if not email:
+        missing.append("IE_EMAIL/INVOICE_USER")
+    if not password:
+        missing.append("IE_PASSWORD/INVOICE_PASS")
+
+    if missing:
+        logger.error(
+            "Credenciais faltando: {}. Configure-as no .env para continuar.",
+            ", ".join(missing),
+        )
+        return None, None
+
+    return email, password
+
 
 async def verificar_rascunho_via_web(vat):
     try:
-        email = os.getenv("invoice.express@lovelystay.com")
-        password = os.getenv("cag_VRP9edt@wjv0zmt")
+        email, password = _get_ie_credentials()
 
         if not email or not password:
-            logger.error("Credenciais IE_EMAIL ou IE_PASSWORD faltando no .env")
             return []
 
         async with async_playwright() as p:

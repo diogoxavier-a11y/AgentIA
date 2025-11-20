@@ -1,9 +1,23 @@
 import os
 import requests
 from loguru import logger
+from dotenv import load_dotenv
 
-API_KEY = os.getenv("INVOICEEXPRESS_API_KEY")
-ACCOUNT = os.getenv("INVOICEEXPRESS_ACCOUNT")
+load_dotenv()
+
+
+def _get_env_or_fail(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Variável de ambiente obrigatória ausente: {name}. "
+            "Configure-a no arquivo .env antes de executar."
+        )
+    return value
+
+
+API_KEY = _get_env_or_fail("INVOICEEXPRESS_API_KEY")
+ACCOUNT = _get_env_or_fail("INVOICEEXPRESS_ACCOUNT")
 
 BASE_URL = f"https://{ACCOUNT}.invoiceexpress.com"
 
