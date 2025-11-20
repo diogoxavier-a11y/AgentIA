@@ -4,7 +4,11 @@ from loguru import logger
 import pandas as pd
 
 from sheet_reader import read_excel_vats
-from invoice_client import buscar_faturas_por_vat, filtrar_rascunhos
+from invoice_client import (
+    buscar_cliente_por_vat,
+    buscar_faturas_por_cliente,
+    filtrar_rascunhos,
+)
 from rpa_playwright import verificar_rascunho_via_web
 
 load_dotenv()
@@ -48,17 +52,16 @@ def main():
     # Salvar em Excel com filtro automático
     with pd.ExcelWriter("resultado_final.xlsx", engine="openpyxl") as writer:
         out_df.to_excel(writer, index=False, sheet_name="Resultados")
+        sheet = writer.sheets["Resultados"]
 
-    sheet = writer.sheets["Resultados"]
+        # Adicionar filtro
+        sheet.auto_filter.ref = sheet.dimensions
 
-    # Adicionar filtro
-    sheet.auto_filter.ref = sheet.dimensions
-
-    # Ajustar automaticamente a largura das colunas
-    for column_cells in sheet.columns:
-        length = max(len(str(cell.value)) for cell in column_cells)
-        col_letter = column_cells[0].column_letter
-        sheet.column_dimensions[col_letter].width = length + 2
+        # Ajustar automaticamente a largura das colunas
+        for column_cells in sheet.columns:
+            length = max(len(str(cell.value)) for cell in column_cells)
+            col_letter = column_cells[0].column_letter
+            sheet.column_dimensions[col_letter].width = length + 2
 
 
 if __name__ == "__main__":
